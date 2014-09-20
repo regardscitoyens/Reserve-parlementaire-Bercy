@@ -11,19 +11,55 @@ drawMap = False
 if len(sys.argv) > 2:
     drawMap = True
 
+lastp = "all"
 filterallpages = True
 minl = 0
 mint = 100
 maxt = 1200
-lastp = "all"
+limits = [
+  (100, 0, str),
+  (200, 1, str),
+  (315, 2, str),
+  (360, 3, str),
+  (535, 4, int),
+  (600, 5, str),
+  (700, 6, str),
+  (1200, 8, int)
+]
+checkidx = 8
+if "-autre" in filepath:
+    limits = [
+      (100, 0, str),
+      (315, 2, str),
+      (500, 3, str),
+      (565, 4, int),
+      (650, 5, str),
+      (1000, 6, str),
+    ]
+    checkidx = 6
+
 with open("cache/senateurs.json", 'r') as f:
-    parls = [p["senateur"] for p in json.load(f)['senateurs']]
+    sens = [p["senateur"] for p in json.load(f)['senateurs']]
+with open("cache/deputes.json", 'r') as f:
+    deps = [p["depute"] for p in json.load(f)['deputes']]
+with open("cache/deputes-2007.json", 'r') as f:
+    deps += [p["depute"] for p in json.load(f)['deputes']]
+with open("cache/deputes-2002.json", 'r') as f:
+    oldparls = {u.encode("utf-8"): 1 for u in json.load(f)}
+if "-AN-" in filepath:
+    typeparl = "Assemblée nationale"
+    parls = deps + sens
+elif "-Sénat-" in filepath:
+    typeparl = "Sénat"
+    parls = sens + deps
+
 parls_dep = {}
 for p in parls:
     dep = str(p["num_deptmt"]).upper()
     if dep not in parls_dep:
         parls_dep[dep] = []
     parls_dep[dep].append(p)
+errors = {}
 
 re_clean_bal = re.compile(r'<[^>]+>')
 re_clean_spaces = re.compile(r'\s+')
@@ -35,13 +71,18 @@ re_clean_euros = re.compile(r"\D")
 clean_euros = lambda x: int(re_clean_euros.sub("", x))
 
 regexps = [(re.compile(r), s) for r, s in [
-    (u'[àÀ]', 'a'),
-    (u'[éÉèÈêÊëË]', 'e'),
-    (u'[îÎïÏ[]', 'i'),
-    (u'[ôÔöÔ]', 'o'),
-    (u'[ùÙûÛüÜ]', 'u'),
-    (u'[çÇ]', 'c'),
-    (u'\W', '')
+    (u'[àâ]', 'a'),
+    (u'[ÀÂ]', 'A'),
+    (u'[éèêë]', 'e'),
+    (u'[ÉÈÊË]', 'E'),
+    (u'[îï[]', 'i'),
+    (u'[ÎÏ[]', 'I'),
+    (u'[ôö]', 'o'),
+    (u'[ÔÔ]', 'O'),
+    (u'[ùûü]', 'u'),
+    (u'[ÙÛÜ]', 'U'),
+    (u'ç', 'c'),
+    (u'Ç', 'C'),
 ]]
 def clean_accents(t):
     if not isinstance(t, unicode):
@@ -49,25 +90,63 @@ def clean_accents(t):
     for r, s in regexps:
         t = r.sub(s, t)
     return t
-checker = lambda x: clean(clean_accents(x)).lower().strip()
+cleaner = re.compile(r'\W')
+checker = lambda x: cleaner.sub('', clean(clean_accents(x))).lower().strip()
 
-re_clean_part = re.compile(ur"^\s*([^A-Z]*) ([A-ZÉ].*)$")
-clean_part = lambda x: re_clean_part.sub(r"\2 \1", x)
+re_particule = re.compile(u"^\s*(d(?:(?:'|e l')|(?:[eu]|es|e la) ))(.*)$", re.I)
+re_clean_nom = re.compile(u"^\s*((?:[A-Z\-'duela]+ )+)([A-Z\-][^A-Z\-'].*)$")
+reorder_nom = lambda x: re_clean_nom.sub(r"\2 \1", re_particule.sub(r"\2 \1", x))
 
 def find_parl(nom, dep):
-    nom = clean_part(nom)
+    orig = nom
+    nom = clean_accents(nom.strip())
+    if nom in oldparls:
+        return "old"
+    nom = reorder_nom(nom)
     nom = checker(nom)
+    nom = nom.replace("hevainqueurchristophe", "helenevainqueurchristophe")
+    nom = nom.replace("rogergerschwartzenberg", "rogergerardschwartzenberg")
+    nom = nom.replace("francoisdescampscrosnier", "francoisedescampscrosnier")
+    nom = nom.replace("berangerepoletti", "berengerepoletti")
+    nom = nom.replace("pozzodiborgoyves", "yvespozzodiborgo")
     nom = nom.replace("josephfrancois", "joseph")
-    if nom == "romaniroger":
+    nom = nom.replace("martinecarilloncouvreur", "martinecarrilloncouvreur")
+    nom = nom.replace("richardariihautuheiava", "richardtuheiava")
+    nom = nom.replace("christophefrassa", "christopheandrefrassa")
+    nom = nom.replace("daphpoznanskibenhamou", "daphnapoznanskibenhamou")
+    nom = nom.replace("pavymorancais", "pavy")
+    if nom == "rogerromani":
         dep = 75
-    elif nom == "valletandre":
+    elif nom == "andrevallet":
         dep = 13
+    elif nom == "jeanchristophelagarde":
+        dep = "93"
+    elif nom == "francoisebriand":
+        dep = "91"
+    elif nom == "nicolasalfonsi":
+        dep = "2A"
+    elif dep.startswith('SAINT-PIERRE'):
+        dep = 975
+    elif dep.startswith('SAINT-BARTH'):
+        dep = 977
+    elif 'WALLIS' in dep:
+        dep = 986
+    elif dep.startswith('POLYN'):
+        dep = 987
+    elif dep.startswith('NOUVELLE'):
+        dep = 988
+    elif dep.startswith('FRAN'):
+        dep = 999
     dep = str(dep).upper()
     for parl in parls_dep[dep]:
-        if checker("%s %s" % (parl['nom_de_famille'], parl['prenom'])) == nom:
+        if checker(parl['nom']) == nom:
             return parl
-    sys.stderr.write("Could not find %s in %s\n" % (nom, dep))
+    if nom not in errors:
+        sys.stderr.write("Could not find %s %s in %s (%s)\n" % (typeparl, orig, dep, nom))
+    errors[nom] = 1
     return None
+
+re_fused = re.compile(r"^(\D+)(\d+[AB]? - .*)$")
 
 page = 0
 topvals = {}
@@ -75,8 +154,8 @@ leftvals = {}
 maxtop = 0
 maxleft = 0
 results = []
-headers = ['bénéficiaire', 'département', 'montant versé en 2013 (€)', 'nature de la subvention', 'programme budgétaire', 'attributeur', 'département attributeur', "année d'octroi de la subvention", 'prénom', 'nom', 'sexe', 'url_sénat', 'url_nossénateurs', 'url_nossénateurs_api']
-record = ["", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+headers = ['bénéficiaire', 'département', 'montant versé en 2013 (€)', 'nature de la subvention', 'programme budgétaire', 'attributeur', 'département attributeur', 'mandat attributeur', "année d'octroi de la subvention", 'prénom', 'nom', 'sexe', 'url_institution', 'url_nosparlementaires', 'url_nosparlementaires_api']
+record = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
 re_line = re.compile(r'<page number|text top="(\d+)" left="(\d+)"[^>]*font="(\d+)">(.*)</text>', re.I)
 for line in (xml).split("\n"):
     #print "DEBUG %s" % line
@@ -102,42 +181,53 @@ for line in (xml).split("\n"):
     leftvals[font].append(left)
     if drawMap:
         continue
-    #print "DEBUG %s %s %s %s" % (font, left, top, text)
+    text = attrs.group(4).replace("&amp;", "&").replace("&quot;", '"')
+    #print >> sys.stderr, "DEBUG %s %s %s %s" % (font, left, top, text)
     if ((page == 1 or filterallpages) and top < mint) or ((lastp == "all" or page == lastp) and top > maxt):
         continue
     if left < minl:
         continue
-    text = attrs.group(4).replace("&amp;", "&").replace("&quot;", '"')
-    if left < 100:
-        record[0] += clean(text)+ " "
-    elif left < 200:
-        record[1] += clean(text)+ " "
-    elif left < 315:
-        record[2] += clean(text)+ " "
-    elif left < 350:
-        record[3] += clean(text)+ " "
-    elif left < 525:
-        record[4] = int(clean(text))
-    elif left < 550:
-        record[5] += clean(text)+ " "
-    elif left < 660:
-        record[6] += clean(text)+ " "
-    else:
-        record[7] = int(clean(text))
-    if record[7]:
+    for limit, idx, typ in limits:
+        if left < limit:
+            if typ == int:
+                record[idx] = int(clean(text))
+            else:
+                record[idx] += clean(text)+ " "
+            break
+
+    if not record[6] and re_fused.match(record[5]):
+        res = re_fused.search(record[5])
+        record[5] = res.group(1)
+        record[6] = res.group(2)
+    if record[checkidx] and record[0]:
+        record[7] = typeparl
         record[1] = clean_dep(record[1])
         record[2] = clean_euros(record[2])
         record[6] = clean_dep(record[6])
+        #print >> sys.stderr, record
         parl = find_parl(record[5], record[6])
-        if parl:
-            record[8] = parl.get('prenom').encode('utf-8')
-            record[9] = parl.get('nom_de_famille').encode('utf-8')
-            record[10] = parl.get('sexe').encode('utf-8')
-            record[11] = parl.get('url_institution').encode('utf-8')
-            record[12] = "http://nossenateurs.fr/%s" % parl.get('slug').encode('utf-8')
-            record[13] = "http://nossenateurs.fr/%s/xml" % parl.get('slug').encode('utf-8')
+        if parl == "old":
+            record[7] = "Député"
+            record[12] = "11ème législature (2002-2007)"
+        elif parl:
+            if parl.get("url_an", ""):
+                record[7] = "Député"
+            else:
+                record[7] = "Sénateur"
+            typ = record[7].replace("é", "e").lower()
+            record[6] = clean_dep(parl.get('num_deptmt'))
+            record[9] = parl.get('prenom').encode('utf-8')
+            record[10] = parl.get('nom_de_famille').encode('utf-8')
+            record[11] = parl.get('sexe').encode('utf-8')
+            record[12] = parl.get('url_institution', parl.get('url_an')).encode('utf-8')
+            record[13] = parl.get('url_nos%ss' % typ).encode('utf-8')
+            record[14] = parl.get('url_nos%ss_api' % typ).encode('utf-8').replace("/json", "/xml")
+        else:
+            record[5] = record[5].strip("_ ")
+            record[5] = record[5].replace("Présidence de l'Assemblée national", "Présidence de l'Assemblée nationale")
         results.append(record)
-        record = ["", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+    if record[checkidx]:
+        record = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
 
 def format_csv(v):
     try:
