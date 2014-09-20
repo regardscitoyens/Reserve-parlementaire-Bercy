@@ -254,8 +254,9 @@ else:
     ax = fig.add_subplot(111)
     ax.grid(True, fillstyle='left')
     nf = len(leftvals)
+    plt.figtext(0.35, 0.04, filepath.replace("pdfs/", "").replace(".xml", "").decode("utf-8"))
     for font in leftvals:
-        color = cm.jet(1.5*font/nf)
+        color = cm.jet(1.7*font/nf)
         ax.plot(leftvals[font], topvals[font], 'ro', color=color, marker=".")
         plt.figtext((font+1.)/(nf+1), 0.95, "font %d" % font, color=color)
     plt.xticks(np.arange(0, maxleft + 50, 50))
