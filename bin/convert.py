@@ -154,8 +154,8 @@ leftvals = {}
 maxtop = 0
 maxleft = 0
 results = []
-headers = ['bénéficiaire', 'département', 'montant versé en 2013 (€)', 'nature de la subvention', 'programme budgétaire', 'attributeur', 'département attributeur', 'mandat attributeur', "année d'octroi de la subvention", 'prénom', 'nom', 'sexe', 'url_institution', 'url_nosparlementaires', 'url_nosparlementaires_api']
-record = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+headers = ['bénéficiaire', 'département', 'montant versé en 2013 (€)', 'nature de la subvention', 'programme budgétaire', 'attributeur', 'département attributeur', 'mandat attributeur', "année d'octroi de la subvention", 'prénom', 'nom', 'sexe', "groupe", 'url_institution', 'url_nosparlementaires', 'url_nosparlementaires_api']
+record = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
 re_line = re.compile(r'<page number|text top="(\d+)" left="(\d+)"[^>]*font="(\d+)">(.*)</text>', re.I)
 for line in (xml).split("\n"):
     #print "DEBUG %s" % line
@@ -219,15 +219,16 @@ for line in (xml).split("\n"):
             record[9] = parl.get('prenom').encode('utf-8')
             record[10] = parl.get('nom_de_famille').encode('utf-8')
             record[11] = parl.get('sexe').encode('utf-8')
-            record[12] = parl.get('url_institution', parl.get('url_an')).encode('utf-8')
-            record[13] = parl.get('url_nos%ss' % typ).encode('utf-8')
-            record[14] = parl.get('url_nos%ss_api' % typ).encode('utf-8').replace("/json", "/xml")
+            record[12] = parl.get('groupe_sigle', "").encode('utf-8')
+            record[13] = parl.get('url_institution', parl.get('url_an')).encode('utf-8')
+            record[14] = parl.get('url_nos%ss' % typ).encode('utf-8')
+            record[15] = parl.get('url_nos%ss_api' % typ).encode('utf-8').replace("/json", "/xml")
         else:
             record[5] = record[5].strip("_ ")
             record[5] = record[5].replace("Présidence de l'Assemblée national", "Présidence de l'Assemblée nationale")
         results.append(record)
     if record[checkidx]:
-        record = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
+        record = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""]
 
 def format_csv(v):
     try:
