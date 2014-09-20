@@ -75,8 +75,8 @@ regexps = [(re.compile(r), s) for r, s in [
     (u'[ÀÂ]', 'A'),
     (u'[éèêë]', 'e'),
     (u'[ÉÈÊË]', 'E'),
-    (u'[îï[]', 'i'),
-    (u'[ÎÏ[]', 'I'),
+    (u'[îï]', 'i'),
+    (u'[ÎÏ]', 'I'),
     (u'[ôö]', 'o'),
     (u'[ÔÔ]', 'O'),
     (u'[ùûü]', 'u'),
@@ -219,7 +219,7 @@ for line in (xml).split("\n"):
             record[9] = parl.get('prenom').encode('utf-8')
             record[10] = parl.get('nom_de_famille').encode('utf-8')
             record[11] = parl.get('sexe').encode('utf-8')
-            record[12] = parl.get('groupe_sigle', "").encode('utf-8')
+            record[12] = parl.get('groupe_sigle', "")
             record[13] = parl.get('url_institution', parl.get('url_an')).encode('utf-8')
             record[14] = parl.get('url_nos%ss' % typ).encode('utf-8')
             record[15] = parl.get('url_nos%ss_api' % typ).encode('utf-8').replace("/json", "/xml")
