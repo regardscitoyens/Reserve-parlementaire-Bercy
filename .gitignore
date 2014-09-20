@@ -1,2 +1,3 @@
 pdfs/*.xml
 cache
+!cache/deputes-2002.json
